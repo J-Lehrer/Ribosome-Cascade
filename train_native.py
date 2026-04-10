@@ -72,8 +72,9 @@ class StreamingTextDataset(IterableDataset):
 # WIKITEXT FALLBACK (for quick validation)
 # ============================================================
 
-def get_wikitext_loader(tokenizer, max_length=512, batch_size=8, split="train"):
-    ds = load_dataset("wikitext", "wikitext-2-raw-v1", split=split)
+def get_wikitext_loader(tokenizer, max_length=512, batch_size=8, split="train",
+                        variant="wikitext-103-raw-v1"):
+    ds = load_dataset("wikitext", variant, split=split)
     ds = ds.filter(lambda x: len(x["text"].strip()) > 20)
 
     all_ids = []
@@ -144,11 +145,12 @@ def train(args):
     print(f"Model params: {total_p:,} total, {train_p:,} trainable")
 
     # Data
-    if args.dataset == "wikitext":
+    if args.dataset in ("wikitext", "wikitext2"):
+        variant = "wikitext-2-raw-v1" if args.dataset == "wikitext2" else "wikitext-103-raw-v1"
         train_loader = get_wikitext_loader(
-            tokenizer, args.max_length, args.batch_size, "train")
+            tokenizer, args.max_length, args.batch_size, "train", variant)
         val_loader = get_wikitext_loader(
-            tokenizer, args.max_length, args.batch_size, "validation")
+            tokenizer, args.max_length, args.batch_size, "validation", variant)
         steps_per_epoch = len(train_loader) // args.grad_accum
     else:
         train_ds = StreamingTextDataset(
@@ -324,7 +326,7 @@ def main():
 
     # Data
     parser.add_argument("--dataset", default="wikitext",
-                        help="'wikitext' for quick validation, 'openwebtext' for real training")
+                        help="'wikitext' for wikitext-103, 'wikitext2' for small, 'openwebtext' for real training")
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--grad_accum", type=int, default=4)
     parser.add_argument("--steps_per_epoch", type=int, default=1000,
