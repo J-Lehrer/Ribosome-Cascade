@@ -78,7 +78,44 @@ Pattern across all experiments:
 
 ---
 
-## 6. Files from This Session
+## 7. Track 2: Native Architecture Results
+
+### Architecture
+119M param transformer trained from scratch with ribosome as first-class component:
+- Lower transformer (4 layers, RoPE, SwiGLU, RMSNorm) → token-level processing
+- Ribosome layer (Gumbel-softmax boundaries, Perceiver chunk encoder, importance scoring)
+- Cascade processor (2 layers, causal attention sorted by chunk weight)
+- Upper transformer (4 layers on metatokens)
+- Chunk decoder (cross-attention back to tokens)
+- Alpha-ramp bypass: 0→1 over first 10% of training
+
+### Results on wikitext-2
+
+| Run | Machine | Epochs | Val CE | Perplexity | Steps |
+|-----|---------|--------|--------|------------|-------|
+| Ribosome | side (3060 Ti) | 3 | **3.76** | 43 | 3470 |
+| Ablation (10L standard) | side (3060 Ti) | 3 | **6.43** | 620 | 3400 |
+| Ribosome | olares (5090 Laptop) | 10 | **0.69** | 2.0 | 5200 |
+
+### Analysis
+The ribosome architecture dramatically outperforms a matched 10-layer standard transformer at the same epoch count and hardware. The gap is 2.67 CE (14× in perplexity) at 3 epochs on matched hardware.
+
+**Confound: curriculum effect.** The alpha-ramp bypass means the ribosome model trains as a 4-layer LM during warmup, then gradually adds compression. The ablation trains 10 layers cold. This staged training is itself a significant advantage.
+
+**Open question:** Is the gap from compression or curriculum? Needs a controlled ablation: 10-layer transformer with a 4-layer warmup bypass (same curriculum, no ribosome).
+
+**The 10-epoch result (val CE 0.69) is memorization** — 119M params on ~2M tokens. But it proves the architecture can train stably through the full cascade pipeline end-to-end.
+
+## 8. Files from Track 2
+
+| File | Location | Description |
+|------|----------|-------------|
+| Architecture | native_arch_v1.py | Full native model definition |
+| Training script | train_native.py | Training loop with schedules |
+| Ablation script | train_ablation.py | Matched baseline without ribosome |
+| Ribosome 3ep log | ribosome_3ep_training_log.json | Training on side |
+| Ribosome 10ep log | ribosome_10ep_training_log.json | Training on olares |
+| Ablation 3ep log | ablation_training_log.json | Baseline on side |
 
 | File | Location | Description |
 |------|----------|-------------|
