@@ -1,0 +1,17 @@
+# Model weights (large binary files)
+*.pt
+*.pth
+*.bin
+weights_*/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# HuggingFace cache
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
