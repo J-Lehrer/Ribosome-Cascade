@@ -66,9 +66,9 @@ Goal: build a transformer from scratch where the ribosome is a first-class compo
 
 | Model | Epochs | Val CE | Perplexity | Hardware |
 |-------|--------|--------|------------|----------|
-| Ribosome native | 3 | **3.76** | 43 | Side (3060 Ti) |
-| Ablation (10L standard) | 3 | **6.43** | 620 | Side (3060 Ti) |
-| Ribosome native | 10 | **0.69** | 2.0 | Olares (5090 Laptop) |
+| Ribosome native | 3 | **3.76** | 43 | GPU-C (3060 Ti) |
+| Ablation (10L standard) | 3 | **6.43** | 620 | GPU-C (3060 Ti) |
+| Ribosome native | 10 | **0.69** | 2.0 | GPU-B (5090 Laptop) |
 
 The ribosome architecture outperforms a matched 10-layer standard transformer by **14× in perplexity** at 3 epochs on identical hardware with comparable parameter counts (119M vs 109M).
 
@@ -80,9 +80,9 @@ The ribosome's alpha-ramp bypass creates a built-in curriculum: the model pre-tr
 
 | Machine | GPU | Experiment | Controls for |
 |---------|-----|-----------|-------------|
-| Olares | RTX 5090 Laptop | Ribosome native | — |
-| Side | RTX 3060 Ti | Standard ablation (10L, no bypass) | Everything |
-| Frank | GTX 1070 | Curriculum ablation (10L + bypass) | Curriculum effect |
+| GPU-B | RTX 5090 Laptop | Ribosome native | — |
+| GPU-C | RTX 3060 Ti | Standard ablation (10L, no bypass) | Everything |
+| GPU-D | GTX 1070 | Curriculum ablation (10L + bypass) | Curriculum effect |
 
 If ribosome > curriculum ablation > standard ablation → both compression and curriculum matter.
 If ribosome ≈ curriculum ablation > standard ablation → curriculum alone explains the gap.
@@ -132,17 +132,17 @@ For hierarchical compression (the long-term vision):
 ## 6. Infrastructure
 
 ### Compute Fleet
-| Machine | Role | GPU | VRAM | Storage |
-|---------|------|-----|------|---------|
-| Main | Development only (no training) | RTX 5090 | 32 GB | 1TB NVMe |
-| Olares | Primary training | RTX 5090 Laptop | 25 GB | 1.8TB NVMe |
-| Side | Secondary training | RTX 3060 Ti | 8 GB | 1TB |
-| Frank | Tertiary training | GTX 1070 | 8 GB | 400GB |
+| Machine | Role | GPU | VRAM |
+|---------|------|-----|------|
+| GPU-A | Development only (no training) | RTX 5090 | 32 GB |
+| GPU-B | Primary training | RTX 5090 Laptop | 25 GB |
+| GPU-C | Secondary training | RTX 3060 Ti | 8 GB |
+| GPU-D | Tertiary training | GTX 1070 | 8 GB |
 
 ### Safety Measures
 - VRAM cap: `torch.cuda.set_per_process_memory_fraction()` on all machines
-- Main excluded from training runs (development/analysis only)
-- HuggingFace cache redirected to NVMe on olares (`HF_HOME=/var/hf_cache`)
+- Dev machine excluded from training runs (development/analysis only)
+- HuggingFace cache redirected to NVMe on primary training machine
 - All training via SSH with nohup/background processes
 - Checkpoints saved periodically for crash recovery
 

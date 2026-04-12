@@ -93,9 +93,9 @@ Pattern across all experiments:
 
 | Run | Machine | Epochs | Val CE | Perplexity | Steps |
 |-----|---------|--------|--------|------------|-------|
-| Ribosome | side (3060 Ti) | 3 | **3.76** | 43 | 3470 |
-| Ablation (10L standard) | side (3060 Ti) | 3 | **6.43** | 620 | 3400 |
-| Ribosome | olares (5090 Laptop) | 10 | **0.69** | 2.0 | 5200 |
+| Ribosome | GPU-C (3060 Ti) | 3 | **3.76** | 43 | 3470 |
+| Ablation (10L standard) | GPU-C (3060 Ti) | 3 | **6.43** | 620 | 3400 |
+| Ribosome | GPU-B (5090 Laptop) | 10 | **0.69** | 2.0 | 5200 |
 
 ### Analysis
 The ribosome architecture dramatically outperforms a matched 10-layer standard transformer at the same epoch count and hardware. The gap is 2.67 CE (14× in perplexity) at 3 epochs on matched hardware.
@@ -113,13 +113,13 @@ The ribosome architecture dramatically outperforms a matched 10-layer standard t
 | Architecture | native_arch_v1.py | Full native model definition |
 | Training script | train_native.py | Training loop with schedules |
 | Ablation script | train_ablation.py | Matched baseline without ribosome |
-| Ribosome 3ep log | ribosome_3ep_training_log.json | Training on side |
-| Ribosome 10ep log | ribosome_10ep_training_log.json | Training on olares |
-| Ablation 3ep log | ablation_training_log.json | Baseline on side |
+| Ribosome 3ep log | ribosome_3ep_training_log.json | Training on GPU-C |
+| Ribosome 10ep log | ribosome_10ep_training_log.json | Training on GPU-B |
+| Ablation 3ep log | ablation_training_log.json | Baseline on GPU-C |
 
 | File | Location | Description |
 |------|----------|-------------|
-| v4 script | E:\Ribosome-Cascade\ribosome_cascade_v4.py | Perceiver bottleneck + importance attn |
-| v5 script | E:\Ribosome-Cascade\ribosome_cascade_v5.py | Importance-modulated sparse attention |
+| v4 script | ribosome_cascade_v4.py | Perceiver bottleneck + importance attn |
+| v5 script | ribosome_cascade_v5.py | Importance-modulated sparse attention |
 | v4 results | benchmark_results_v4.json, v4.1.json | Bottleneck experiment data |
 | v5 results | benchmark_results_v5.json, v5.1.json | Sparse attention experiment data |
