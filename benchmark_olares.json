@@ -1,0 +1,15 @@
+{
+  "model": "RibosomeTiny",
+  "checkpoint": "weights_olares/best.pt",
+  "step": 100000,
+  "params": 49080834,
+  "val_ce": 1.415142040948073,
+  "val_ppl": 4.117071217141938,
+  "importance": {
+    "mean": 0.31616567000746726,
+    "std": 0.1453069519251585,
+    "entropy": 0.5732170273860295
+  },
+  "eval_batches": 120,
+  "eval_time_s": 1.3
+}
