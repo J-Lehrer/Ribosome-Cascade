@@ -12,9 +12,32 @@ __pycache__/
 # HuggingFace cache
 .cache/
 
-# Local-only (has SSH hostnames)
+# Local infrastructure (SSH hostnames, machine-specific)
 monitor.py
 monitor.pid
+cluster_monitor.py
+cluster_monitor.pid
+cluster_status.py
+
+# Temp/debug scripts
+_*.py
+debug_*.py
+diagnose_*.py
+
+# Log files
+*.log
+training_log.json
+
+# Superseded notebooks and docs
+Ribosome_Cascade_Colab_ScaleUp.ipynb
+Project_Ribosome (1).ipynb
+RESEARCH_SUMMARY.md
+
+# Local experiment outputs
+exp_extended_baseline/
+exp_compression_sweep/
+exp_curriculum_ablation/
+exp_layer_balance/
 
 # OS
 .DS_Store

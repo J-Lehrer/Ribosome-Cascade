@@ -98,7 +98,7 @@ This is active research. The results above are promising but have known limitati
 
 **Compute-matched comparison needed.** Current comparisons are at equal training steps, not equal FLOPs. The ribosome does less compute per step (by design), which means a FLOPs-matched comparison would be even more favorable — but this needs to be measured explicitly.
 
-**Scale-up in progress.** 250M-parameter experiments are running on Colab A100 to test whether the advantage holds at larger scale.
+**Scale-up in progress.** 250M-parameter experiments are running on Colab A100. The BigBaseline (252M params, 16 layers) reached val CE 4.36 / PPL 78 on wikitext-103 in 6 hours. RibosomeTiny at the same scale is training next — this will show whether the advantage holds beyond 50M params.
 
 ### Research tracks
 

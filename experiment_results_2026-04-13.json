@@ -79,6 +79,18 @@
       "val_ppl": 9.4,
       "params": 49076738,
       "note": "still running"
+    },
+    "colab_big_baseline_250M": {
+      "machine": "colab_a100",
+      "gpu": "A100 40GB",
+      "model": "BigBaseline 16L 1024h",
+      "tokens_per_step": "256 raw (seq_len=1024)",
+      "step": 14392,
+      "val_ce": 4.3557,
+      "val_ppl": 77.9,
+      "params": 252790784,
+      "dataset": "wikitext-103",
+      "epochs": 4
     }
   }
 }
