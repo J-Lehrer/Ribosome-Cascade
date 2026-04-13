@@ -14,10 +14,10 @@
 Four parallel experiments across all available GPUs:
 | Node | GPU | VRAM | Experiment |
 |------|-----|------|-----------|
-| main | RTX 5090 | 32GB (cap 30) | Extended BigBaseline 500K |
-| olares | RTX 5090 Laptop | 24GB | Curriculum Ablation |
-| side | RTX 3060 Ti | 8GB | Compression Ratio Sweep |
-| frank | GTX 1070 | 8GB | Layer Balance Ablation |
+| A | RTX 5090 | 32GB (cap 30) | Extended BigBaseline 500K |
+| B | RTX 5090 Laptop | 24GB | Curriculum Ablation |
+| C | RTX 3060 Ti | 8GB | Compression Ratio Sweep |
+| D | GTX 1070 | 8GB | Layer Balance Ablation |
 
 Cluster monitor dashboard on `http://localhost:8778`.
 
@@ -31,8 +31,8 @@ Cluster monitor dashboard on `http://localhost:8778`.
 
 | Steps | Val CE | PPL |
 |-------|--------|-----|
-| 90K (frank) | 6.97 | 1,063 |
-| 470K (main) | 6.18 | 485 |
+| 90K (D) | 6.97 | 1,063 |
+| 470K (A) | 6.18 | 485 |
 
 Even at 5× training budget, BigBaseline (63M params, 12 layers, 256 raw tokens) achieves PPL 485. RibosomeTiny (49M params, 6 layers, 16 metatokens) achieves PPL 4.1 at 100K steps. The gap is **~120×** in perplexity.
 
