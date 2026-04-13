@@ -168,6 +168,30 @@ def train_model(model, name, tokenizer, device, args, is_ribosome=False):
         val_loader = get_wikitext_loader(
             tokenizer, args.max_length, args.batch_size, "validation", "wikitext-103-raw-v1")
         steps_per_epoch = args.steps_per_epoch
+    elif args.dataset == "local_wikitext103":
+        # Load pre-tokenized tokens from disk (Colab-friendly, no HF downloads at train time)
+        token_path = getattr(args, "token_cache", "/content/wikitext103_tokens.pt")
+        import torch as _torch
+        print(f"  Loading pre-tokenized data from {token_path}...")
+        all_ids = _torch.load(token_path, weights_only=True)
+        if not isinstance(all_ids, list):
+            all_ids = all_ids.tolist() if hasattr(all_ids, 'tolist') else list(all_ids)
+        chunks = []
+        for i in range(0, len(all_ids) - args.max_length, args.max_length):
+            inp = torch.tensor(all_ids[i:i + args.max_length], dtype=torch.long)
+            lab = torch.tensor(all_ids[i + 1:i + args.max_length + 1], dtype=torch.long)
+            chunks.append({"input_ids": inp, "labels": lab})
+        print(f"  {len(all_ids):,} tokens -> {len(chunks):,} chunks")
+
+        class _DS(torch.utils.data.Dataset):
+            def __init__(self, d): self.d = d
+            def __len__(self): return len(self.d)
+            def __getitem__(self, i): return self.d[i]
+
+        train_loader = DataLoader(_DS(chunks), batch_size=args.batch_size, shuffle=True)
+        val_loader = get_wikitext_loader(
+            tokenizer, args.max_length, args.batch_size, "validation", "wikitext-103-raw-v1")
+        steps_per_epoch = len(train_loader) // args.grad_accum
     else:
         variant = "wikitext-2-raw-v1" if args.dataset == "wikitext2" else "wikitext-103-raw-v1"
         train_loader = get_wikitext_loader(
