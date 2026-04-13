@@ -1,0 +1,68 @@
+{
+  "RibosomeTiny_3+3": {
+    "wikitext103": {
+      "ce": 0.9523,
+      "ppl": 2.59,
+      "tokens": 245248,
+      "time_s": 0.9
+    },
+    "c4": {
+      "ce": 1.1992,
+      "ppl": 3.32,
+      "tokens": 944128,
+      "time_s": 2.6
+    },
+    "lambada": {
+      "ce": 10.6733,
+      "ppl": 43188.48,
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 5153,
+      "time_s": 9.0
+    }
+  },
+  "RibosomeTiny_2+4": {
+    "wikitext103": {
+      "ce": 1.4157,
+      "ppl": 4.12,
+      "tokens": 245248,
+      "time_s": 0.7
+    },
+    "c4": {
+      "ce": 1.5956,
+      "ppl": 4.93,
+      "tokens": 944128,
+      "time_s": 2.5
+    },
+    "lambada": {
+      "ce": 8.0855,
+      "ppl": 3247.19,
+      "accuracy": 0.0006,
+      "correct": 3,
+      "total": 5153,
+      "time_s": 8.6
+    }
+  },
+  "BigBaseline_12L": {
+    "wikitext103": {
+      "ce": 6.1839,
+      "ppl": 484.9,
+      "tokens": 245248,
+      "time_s": 1.1
+    },
+    "c4": {
+      "ce": 5.9041,
+      "ppl": 366.53,
+      "tokens": 944128,
+      "time_s": 4.1
+    },
+    "lambada": {
+      "ce": 9.7589,
+      "ppl": 17307.48,
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 5153,
+      "time_s": 13.1
+    }
+  }
+}

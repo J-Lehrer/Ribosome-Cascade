@@ -65,11 +65,10 @@ class BigBaseline(nn.Module):
         logits = self.lm_head(x)
         loss = None
         if labels is not None:
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
+            # No shift: loader already provides aligned input/label pairs
             loss = F.cross_entropy(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1))
+                logits.view(-1, logits.size(-1)),
+                labels.view(-1))
         return loss, logits
 
     def count_params(self):
@@ -144,11 +143,12 @@ class RibosomeTiny(nn.Module):
         logits = self.lm_head(output)
         loss = None
         if labels is not None:
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
+            # Data loader already shifts: input=tokens[:-1], labels=tokens[1:]
+            # So logits[i] predicts position i+1 and labels[i] IS position i+1
+            # No extra shift needed.
             loss = F.cross_entropy(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1))
+                logits.view(-1, logits.size(-1)),
+                labels.view(-1))
         return loss, logits, importance
 
     def count_params(self):
