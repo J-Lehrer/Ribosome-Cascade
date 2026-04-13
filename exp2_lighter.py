@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from native_arch_v1 import (
     RMSNorm, RotaryEmbedding, TransformerBlock, RibosomeLayer, CascadeProcessor, ChunkDecoder
 )
-from train_native import get_wikitext_loader, get_lr, StreamingTextDataset
+from train_native import get_wikitext_loader, get_lr, StreamingTextDataset, PreloadedTextDataset
 
 
 class BigBaseline(nn.Module):
@@ -156,8 +156,14 @@ class RibosomeTiny(nn.Module):
 
 
 def train_model(model, name, tokenizer, device, args, is_ribosome=False):
+    use_streaming = getattr(args, "streaming", True)
     if args.dataset == "openwebtext":
-        train_ds = StreamingTextDataset(tokenizer, args.max_length, "openwebtext")
+        if use_streaming:
+            train_ds = StreamingTextDataset(tokenizer, args.max_length, "openwebtext")
+        else:
+            max_tok = getattr(args, "max_tokens", None)
+            train_ds = PreloadedTextDataset(tokenizer, args.max_length, "openwebtext",
+                                            max_tokens=max_tok)
         train_loader = DataLoader(train_ds, batch_size=args.batch_size)
         val_loader = get_wikitext_loader(
             tokenizer, args.max_length, args.batch_size, "validation", "wikitext-103-raw-v1")

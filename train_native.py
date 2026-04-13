@@ -69,6 +69,71 @@ class StreamingTextDataset(IterableDataset):
 
 
 # ============================================================
+# PRELOADED DATASET (no streaming — avoids Colab hangs)
+# ============================================================
+
+class PreloadedTextDataset(IterableDataset):
+    """
+    Downloads OWT fully, tokenizes, and packs into chunks.
+    Slower startup but no mid-training hangs from streaming.
+    Use for Colab or any environment where streaming is unreliable.
+    """
+    def __init__(self, tokenizer, max_length=512, dataset_name="openwebtext",
+                 split="train", max_tokens=None):
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.dataset_name = dataset_name
+        self.split = split
+        self.max_tokens = max_tokens  # cap total tokens (None = use all)
+        self.chunks = None
+
+    def _build(self):
+        if self.chunks is not None:
+            return
+        import time
+        print(f"  [PreloadedTextDataset] Downloading {self.dataset_name}...")
+        t0 = time.time()
+        ds = load_dataset(self.dataset_name, split=self.split)
+        print(f"  [PreloadedTextDataset] Downloaded {len(ds)} examples in {time.time()-t0:.0f}s")
+
+        print(f"  [PreloadedTextDataset] Tokenizing...")
+        t0 = time.time()
+        all_ids = []
+        for i, ex in enumerate(ds):
+            text = ex.get("text", "")
+            if not text.strip():
+                continue
+            all_ids.extend(self.tokenizer.encode(text))
+            if self.max_tokens and len(all_ids) >= self.max_tokens:
+                all_ids = all_ids[:self.max_tokens]
+                break
+            if (i + 1) % 100000 == 0:
+                print(f"    {i+1} docs, {len(all_ids):,} tokens...")
+
+        n_chunks = (len(all_ids) - 1) // self.max_length
+        print(f"  [PreloadedTextDataset] {len(all_ids):,} tokens -> {n_chunks:,} chunks "
+              f"({time.time()-t0:.0f}s)")
+
+        self.all_ids = all_ids
+        self.n_chunks = n_chunks
+        self.chunks = True  # mark as built
+
+    def __iter__(self):
+        self._build()
+        import random
+        indices = list(range(self.n_chunks))
+        random.shuffle(indices)
+        for idx in indices:
+            start = idx * self.max_length
+            chunk = self.all_ids[start:start + self.max_length + 1]
+            if len(chunk) < self.max_length + 1:
+                continue
+            input_ids = torch.tensor(chunk[:-1], dtype=torch.long)
+            labels = torch.tensor(chunk[1:], dtype=torch.long)
+            yield {"input_ids": input_ids, "labels": labels}
+
+
+# ============================================================
 # WIKITEXT FALLBACK (for quick validation)
 # ============================================================
 
