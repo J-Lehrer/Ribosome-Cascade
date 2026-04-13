@@ -124,15 +124,14 @@ def eval_ce(model, loader, device, is_ribosome=False):
         n_tokens = mask.sum().item()
         if n_tokens == 0:
             continue
-        # Recompute loss only on valid tokens for LAMBADA
+        # For LAMBADA with -100 masked positions, compute loss only on valid tokens
+        # No shift needed: data loader already aligns logits[i] with labels[i]
         if (labels == -100).any():
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            valid = shift_labels != -100
+            valid = labels != -100
             if valid.sum() == 0:
                 continue
-            flat_logits = shift_logits.view(-1, shift_logits.size(-1))[valid.view(-1)]
-            flat_labels = shift_labels.view(-1)[valid.view(-1)]
+            flat_logits = logits.view(-1, logits.size(-1))[valid.view(-1)]
+            flat_labels = labels.view(-1)[valid.view(-1)]
             loss = F.cross_entropy(flat_logits, flat_labels)
             n_tokens = valid.sum().item()
         total_loss += loss.item() * n_tokens
@@ -160,9 +159,8 @@ def eval_lambada_accuracy(model, loader, device, is_ribosome=False):
             if len(valid_pos) == 0:
                 continue
             last_pos = valid_pos[-1].item()
-            # The prediction for position last_pos comes from logits at last_pos-1
-            pred_pos = last_pos - 1 if last_pos > 0 else 0
-            pred = logits[i, pred_pos].argmax().item()
+            # logits[i] predicts labels[i] (no shift needed, loader pre-aligned)
+            pred = logits[i, last_pos].argmax().item()
             target = seq_labels[last_pos].item()
             if pred == target:
                 correct += 1
