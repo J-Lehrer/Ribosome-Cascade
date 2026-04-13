@@ -1,0 +1,32 @@
+{
+  "RibosomeTiny 3+3": {
+    "total": 20640907264,
+    "breakdown": {
+      "embedding": 0,
+      "embed_layers": 5233704960,
+      "ribosome": 562036736,
+      "upper_layers": 303513600,
+      "decoder": 1367080960,
+      "lm_head": 13174571008
+    }
+  },
+  "RibosomeTiny 2+4": {
+    "total": 18997510144,
+    "breakdown": {
+      "embedding": 0,
+      "embed_layers": 3489136640,
+      "ribosome": 562036736,
+      "upper_layers": 404684800,
+      "decoder": 1367080960,
+      "lm_head": 13174571008
+    }
+  },
+  "BigBaseline 12L": {
+    "total": 34109390848,
+    "breakdown": {
+      "embedding": 0,
+      "transformer": 20934819840,
+      "lm_head": 13174571008
+    }
+  }
+}
