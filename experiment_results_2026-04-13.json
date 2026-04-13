@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-04-13",
+  "experiments": {
+    "extended_baseline_500k": {
+      "machine": "main",
+      "gpu": "RTX 5090",
+      "model": "BigBaseline 12L",
+      "tokens_per_step": "256 raw",
+      "step": 470000,
+      "val_ce": 6.1833,
+      "val_ppl": 484.6,
+      "params": 63486976
+    },
+    "ribosome_tiny_2plus4_16chunks": {
+      "machine": "olares",
+      "gpu": "RTX 5090 Laptop",
+      "model": "RibosomeTiny 2+4",
+      "tokens_per_step": "16 metatokens",
+      "step": 100000,
+      "val_ce": 1.416,
+      "val_ppl": 4.1,
+      "params": 49080834
+    },
+    "big_baseline_100k": {
+      "machine": "frank",
+      "gpu": "GTX 1070",
+      "model": "BigBaseline 12L",
+      "tokens_per_step": "256 raw",
+      "step": 90000,
+      "val_ce": 6.9694,
+      "val_ppl": 1063.6,
+      "params": 63486976
+    },
+    "curriculum_ablation": {
+      "machine": "olares",
+      "gpu": "RTX 5090 Laptop",
+      "model": "CurriculumBaseline 12L (alpha-ramp, no ribosome)",
+      "tokens_per_step": "256 raw",
+      "step": 100000,
+      "val_ce": 6.6481,
+      "val_ppl": 771.3,
+      "params": 63486976
+    },
+    "layer_balance_e1_u5": {
+      "machine": "frank",
+      "gpu": "GTX 1070",
+      "model": "RibosomeTiny 1+5, 16 chunks",
+      "tokens_per_step": "16 metatokens",
+      "step": 95000,
+      "val_ce": 2.6752,
+      "val_ppl": 14.5,
+      "params": 49080834
+    },
+    "layer_balance_e3_u3": {
+      "machine": "frank",
+      "gpu": "GTX 1070",
+      "model": "RibosomeTiny 3+3, 16 chunks",
+      "tokens_per_step": "16 metatokens",
+      "step": 75000,
+      "val_ce": 0.9523,
+      "val_ppl": 2.6,
+      "params": 49080834
+    },
+    "compression_chunks_4": {
+      "machine": "side",
+      "gpu": "RTX 3060 Ti",
+      "model": "RibosomeTiny 2+4, 4 chunks",
+      "step": 100000,
+      "val_ce": 3.4456,
+      "val_ppl": 31.4,
+      "params": 49074690
+    },
+    "compression_chunks_8": {
+      "machine": "side",
+      "gpu": "RTX 3060 Ti",
+      "model": "RibosomeTiny 2+4, 8 chunks",
+      "step": 75000,
+      "val_ce": 2.2453,
+      "val_ppl": 9.4,
+      "params": 49076738,
+      "note": "still running"
+    }
+  }
+}
