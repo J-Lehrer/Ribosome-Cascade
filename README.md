@@ -127,30 +127,46 @@ python exp2_lighter.py --model big --device cuda --epochs 1 --steps_per_epoch 10
 ```
 
 ### Scale-up on Colab
-Upload `Ribosome_Cascade_ScaleUp_v2.ipynb` to Colab with A100 runtime. Self-contained: downloads data via wget, no HuggingFace streaming dependencies.
+Upload `notebooks/Ribosome_Cascade_ScaleUp_v2.ipynb` to Colab with A100 runtime. Self-contained: downloads data via wget, no HuggingFace streaming dependencies.
 
 ## File Guide
 
-| File | Description |
-|------|-------------|
-| `native_arch_v1.py` | Core architecture: RMSNorm, RoPE, TransformerBlock, RibosomeLayer, ChunkDecoder |
-| `exp2_lighter.py` | Main experiment: BigBaseline vs RibosomeTiny training |
-| `train_native.py` | Training utilities: data loaders, LR schedules |
-| `exp_curriculum_ablation.py` | Curriculum-only control (no compression) |
-| `exp_compression_sweep.py` | Compression ratio sweep (4/8/16/32 chunks) |
-| `exp_layer_balance.py` | Embed/upper layer split ablation |
-| `exp_extended_baseline.py` | BigBaseline trained to 500K steps |
-| `Ribosome_Cascade_ScaleUp_v2.ipynb` | Colab notebook for 250M-scale experiments |
-| `RESEARCH_NOTES_*.md` | Detailed session notes |
-| `experiment_results_*.json` | Machine-readable experiment data |
+```
+├── native_arch_v1.py          # Core: RMSNorm, RoPE, TransformerBlock, RibosomeLayer, ChunkDecoder
+├── train_native.py            # Training utilities: data loaders, LR schedules
+├── exp2_lighter.py            # Main experiment: BigBaseline vs RibosomeTiny
+├── exp_curriculum_ablation.py # Curriculum-only control (no compression)
+├── exp_compression_sweep.py   # Compression ratio sweep (4/8/16/32 chunks)
+├── exp_layer_balance.py       # Embed/upper layer split ablation
+├── exp_extended_baseline.py   # BigBaseline trained to 500K steps
+│
+├── notebooks/
+│   ├── Ribosome_Cascade_ScaleUp_v2.ipynb  # Colab A100 notebook (250M scale)
+│   ├── Project_Ribosome.ipynb              # Original PoC
+│   └── Project_Ribosome_large.ipynb        # Extended PoC
+│
+├── results/                   # Experiment data (JSON)
+│   ├── experiment_results_2026-04-13.json  # Consolidated results
+│   └── benchmark_*.json, *_log.json        # Raw training logs
+│
+├── notes/                     # Detailed session research notes
+│   ├── RESEARCH_NOTES_2026-04-09.md
+│   ├── RESEARCH_NOTES_2026-04-10.md
+│   └── RESEARCH_NOTES_2026-04-13.md
+│
+└── archive/                   # Track 1 (frozen GPT-2) experiments — historical
+    ├── ribosome_benchmark_v*.py
+    ├── ribosome_cascade_v*.py
+    └── train_*.py
+```
 
 ## Hardware
 
-Experiments run across a home lab cluster:
-- **main**: NVIDIA RTX 5090 (32GB) — primary training
-- **olares**: RTX 5090 Laptop (24GB) — parallel experiments
-- **side**: RTX 3060 Ti (8GB) — ablation sweeps
-- **frank**: GTX 1070 (8GB) — ablation sweeps
+Experiments run across a 4-GPU home lab cluster:
+- NVIDIA RTX 5090 (32GB) — primary training
+- RTX 5090 Laptop (24GB) — parallel experiments
+- RTX 3060 Ti (8GB) — ablation sweeps
+- GTX 1070 (8GB) — ablation sweeps
 
 ## Related Work
 
