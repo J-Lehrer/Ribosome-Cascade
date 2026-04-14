@@ -194,6 +194,23 @@ class FFN(nn.Module):
         return self.w2(F.silu(self.w1(x)) * self.w3(x))
 
 
+def sinusoidal_position_encoding(positions, dim):
+    """Compute sinusoidal positional encoding at arbitrary (fractional) positions.
+    
+    Args:
+        positions: (B, K) — fractional positions in sequence
+        dim: hidden dimension (must be even)
+    Returns:
+        encoding: (B, K, dim) — positional encoding vectors
+    """
+    inv_freq = 1.0 / (10000 ** (
+        torch.arange(0, dim, 2, device=positions.device, dtype=torch.float32) / dim
+    ))  # (dim/2,)
+    # (B, K, 1) x (1, 1, dim/2) -> (B, K, dim/2)
+    freqs = positions.unsqueeze(-1) * inv_freq.unsqueeze(0).unsqueeze(0)
+    return torch.cat([freqs.sin(), freqs.cos()], dim=-1)  # (B, K, dim)
+
+
 class TransformerBlock(nn.Module):
     def __init__(self, hidden_size, n_heads, rope=None):
         super().__init__()
@@ -251,10 +268,12 @@ class RibosomeLayer(nn.Module):
         # Temperature for Gumbel-softmax (annealed during training)
         self.gumbel_temperature = temperature
     
-    def forward(self, hidden_states, return_debug=False):
+    def forward(self, hidden_states, return_debug=False, padding_mask=None):
         """
         Args:
             hidden_states: (B, S, H) from lower transformer
+            padding_mask: (B, S) optional, True for real tokens, False for padding.
+                         If None, all tokens are treated as real.
         Returns:
             chunk_repr: (B, K, H) compressed metatoken representations
             chunk_weights: (B, K) importance weight per chunk
@@ -266,6 +285,10 @@ class RibosomeLayer(nn.Module):
         
         # --- Score importance ---
         importance = self.scorer(hidden_states).squeeze(-1)  # (B, S)
+        
+        # Mask padding: zero importance and boundaries for padding tokens
+        if padding_mask is not None:
+            importance = importance * padding_mask.float()
         
         # --- Predict boundaries via Gumbel-softmax ---
         boundary_logits = self.boundary_predictor(hidden_states).squeeze(-1)  # (B, S)
@@ -281,6 +304,10 @@ class RibosomeLayer(nn.Module):
         
         # Soft boundary scores per position
         boundary_probs = torch.sigmoid(noisy_logits)  # (B, S)
+        
+        # Mask padding: zero boundary probs so padding doesn't create chunks
+        if padding_mask is not None:
+            boundary_probs = boundary_probs * padding_mask.float()
         
         # --- Build soft token-to-chunk assignment ---
         # Each token is assigned to the chunk defined by the nearest
@@ -305,6 +332,10 @@ class RibosomeLayer(nn.Module):
         assign = assign / (assign.sum(dim=-1, keepdim=True) + 1e-8)  # normalize per token
         # assign: (B, S, K) — soft token-to-chunk assignment
         
+        # Mask padding: zero assignment so padding tokens don't pollute chunks
+        if padding_mask is not None:
+            assign = assign * padding_mask.float().unsqueeze(-1)
+        
         # --- Compress tokens into chunks ---
         # Weight assignment by importance (high-importance tokens dominate chunk repr)
         weighted_assign = assign * importance.unsqueeze(-1)  # (B, S, K)
@@ -325,9 +356,20 @@ class RibosomeLayer(nn.Module):
             assign  # (B, S, K)
         ).squeeze(1)  # (B, K)
         
+        # --- Compute chunk positions (weighted mean of source token positions) ---
+        positions = torch.arange(S, device=hidden_states.device, dtype=torch.float32)
+        # assign: (B, S, K) -> transpose to (B, K, S), multiply by positions (S,)
+        chunk_positions = torch.bmm(
+            assign.transpose(1, 2),  # (B, K, S)
+            positions.view(1, S, 1).expand(B, -1, -1)  # (B, S, 1)
+        ).squeeze(-1)  # (B, K)
+        # Normalize by total assignment mass per chunk
+        chunk_mass = assign.sum(dim=1)  # (B, K)
+        chunk_positions = chunk_positions / (chunk_mass + 1e-8)  # (B, K)
+        
         if return_debug:
-            return chunk_repr, chunk_weights, assign, importance, boundary_probs
-        return chunk_repr, chunk_weights, assign, importance
+            return chunk_repr, chunk_weights, assign, importance, boundary_probs, chunk_positions
+        return chunk_repr, chunk_weights, assign, importance, chunk_positions
 
 
 # ============================================================
@@ -419,6 +461,68 @@ class ChunkDecoder(nn.Module):
         x = self.norm(token_states + decoded)
         x = x + self.ffn(self.ffn_norm(x))
         return x
+
+
+class ReverseRibosome(nn.Module):
+    """
+    The reverse ribosome: expands chunk-level representations back to
+    full token-level resolution with enough capacity to recover
+    fine-grained sequential detail.
+    
+    Pipeline:
+      1. Cross-attention: each token attends to processed chunks
+         (injects chunk-level context into token representations)
+      2. Residual add with original token_states
+         (preserves fine-grained token identity from embed layers)
+      3. N causal self-attention layers at full token resolution
+         (recovers sequential dependencies lost in compression)
+    
+    The self-attention layers are the key: they operate at full S
+    tokens with causal masking, so they can reconstruct the
+    fine-grained token-by-token predictions that compression destroyed.
+    """
+    
+    def __init__(self, hidden_size, n_heads, n_layers=2, rope=None):
+        super().__init__()
+        # Step 1: cross-attention from tokens to chunks
+        self.cross_attn = nn.MultiheadAttention(
+            hidden_size, num_heads=n_heads, batch_first=True
+        )
+        self.cross_norm = RMSNorm(hidden_size)
+        self.cross_ffn = FFN(hidden_size)
+        self.cross_ffn_norm = RMSNorm(hidden_size)
+        
+        # Step 2: token-level self-attention layers (with RoPE for position)
+        self.layers = nn.ModuleList([
+            TransformerBlock(hidden_size, n_heads, rope)
+            for _ in range(n_layers)
+        ])
+        self.out_norm = RMSNorm(hidden_size)
+    
+    def forward(self, token_states, chunk_repr, token_to_chunk):
+        """
+        Args:
+            token_states: (B, S, H) — from embed layers (has positional info)
+            chunk_repr: (B, K, H) — processed chunk representations
+            token_to_chunk: (B, S, K) — soft assignment matrix
+        Returns:
+            output: (B, S, H) — refined token-level representations
+        """
+        B, S, H = token_states.shape
+        
+        # Cross-attention: inject chunk context into token representations
+        decoded, _ = self.cross_attn(token_states, chunk_repr, chunk_repr)
+        x = self.cross_norm(token_states + decoded)
+        x = x + self.cross_ffn(self.cross_ffn_norm(x))
+        
+        # Causal self-attention at full token resolution
+        causal = torch.triu(
+            torch.ones(S, S, device=x.device, dtype=torch.bool), diagonal=1
+        )
+        for layer in self.layers:
+            x = layer(x, causal_mask=causal)
+        
+        return self.out_norm(x)
 
 
 # ============================================================
@@ -516,7 +620,11 @@ class RibosomeCascadeNative(nn.Module):
         token_states = self.lower_norm(x)  # save for decoder
         
         # Ribosome: compress to chunks
-        chunk_repr, chunk_weights, assign, importance = self.ribosome(token_states)
+        chunk_repr, chunk_weights, assign, importance, chunk_positions = self.ribosome(token_states)
+        
+        # Inject sequence position metadata into chunks
+        chunk_repr = chunk_repr + sinusoidal_position_encoding(
+            chunk_positions, self.hidden_size)
         
         # Cascade: priority-ordered processing
         chunk_repr = self.cascade(chunk_repr, chunk_weights)

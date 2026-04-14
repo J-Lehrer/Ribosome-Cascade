@@ -24,7 +24,8 @@ from torch.utils.data import DataLoader
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from native_arch_v1 import (
-    RMSNorm, RotaryEmbedding, TransformerBlock, RibosomeLayer, CascadeProcessor, ChunkDecoder
+    RMSNorm, RotaryEmbedding, TransformerBlock, RibosomeLayer, CascadeProcessor,
+    ChunkDecoder, ReverseRibosome, sinusoidal_position_encoding
 )
 from train_native import get_wikitext_loader, get_lr, StreamingTextDataset, PreloadedTextDataset
 
@@ -79,9 +80,13 @@ class RibosomeTiny(nn.Module):
     """
     Ribosome compresses 256→16 tokens, then a tiny 4-layer transformer
     processes metatokens. Much smaller total compute than the big baseline.
+    
+    With reverse_layers > 0, uses ReverseRibosome for token-level
+    reconstruction with causal self-attention after chunk decompression.
     """
     def __init__(self, vocab_size=50257, hidden_size=512, n_heads=8,
-                 embed_layers=2, upper_layers=4, max_seq_len=256, n_chunks=16):
+                 embed_layers=2, upper_layers=4, max_seq_len=256, n_chunks=16,
+                 reverse_layers=0):
         super().__init__()
         self.tok_emb = nn.Embedding(vocab_size, hidden_size)
         self.rope = RotaryEmbedding(hidden_size // n_heads, max_seq_len)
@@ -104,7 +109,11 @@ class RibosomeTiny(nn.Module):
         self.upper_norm = RMSNorm(hidden_size)
 
         # Decode back to tokens
-        self.decoder = ChunkDecoder(hidden_size, n_heads)
+        if reverse_layers > 0:
+            self.decoder = ReverseRibosome(hidden_size, n_heads,
+                                           n_layers=reverse_layers, rope=self.rope)
+        else:
+            self.decoder = ChunkDecoder(hidden_size, n_heads)
 
         self.lm_head = nn.Linear(hidden_size, vocab_size, bias=False)
         self.lm_head.weight = self.tok_emb.weight
@@ -121,8 +130,14 @@ class RibosomeTiny(nn.Module):
             elif isinstance(m, nn.Embedding):
                 torch.nn.init.normal_(m.weight, std=0.02)
 
-    def forward(self, input_ids, labels=None):
+    def forward(self, input_ids, labels=None, padding_mask=None):
         B, S = input_ids.shape
+        
+        # Auto-derive padding mask from labels if not provided
+        if padding_mask is None and labels is not None:
+            if (labels == -100).any():
+                padding_mask = (labels != -100)
+        
         x = self.tok_emb(input_ids)
         causal = torch.triu(
             torch.ones(S, S, device=x.device, dtype=torch.bool), diagonal=1)
@@ -131,7 +146,12 @@ class RibosomeTiny(nn.Module):
             x = layer(x, causal_mask=causal)
         token_states = self.embed_norm(x)
 
-        chunk_repr, chunk_weights, assign, importance = self.ribosome(token_states)
+        chunk_repr, chunk_weights, assign, importance, chunk_positions = self.ribosome(
+            token_states, padding_mask=padding_mask)
+
+        # Note: chunk_positions available for future use but NOT injected
+        # as additive sinusoidal encoding (that hurt PPL). Instead, the
+        # ReverseRibosome uses RoPE at token-level on the way out.
 
         for layer in self.upper:
             chunk_repr = layer(chunk_repr)
