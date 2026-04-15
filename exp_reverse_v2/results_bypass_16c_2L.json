@@ -1,0 +1,19 @@
+{
+  "tag": "bypass_16c_2L",
+  "config": {
+    "chunks": 16,
+    "reverse": 2,
+    "bypass": true,
+    "embed": 3,
+    "upper": 3,
+    "steps": 25000
+  },
+  "params": 55505411,
+  "wt103_ce": 2.7391,
+  "wt103_ppl": 15.47,
+  "lambada_ce": 10.3389,
+  "lambada_ppl": 30911.15,
+  "lambada_acc": 0.0033,
+  "lambada_correct": 17,
+  "lambada_total": 5153
+}

@@ -1,0 +1,19 @@
+{
+  "tag": "pareto_96c_50k",
+  "config": {
+    "chunks": 96,
+    "reverse": 2,
+    "bypass": false,
+    "embed": 3,
+    "upper": 3,
+    "steps": 50000
+  },
+  "params": 55414786,
+  "wt103_ce": 0.2791,
+  "wt103_ppl": 1.32,
+  "lambada_ce": 14.0635,
+  "lambada_ppl": 1281473.57,
+  "lambada_acc": 0.0004,
+  "lambada_correct": 2,
+  "lambada_total": 5153
+}

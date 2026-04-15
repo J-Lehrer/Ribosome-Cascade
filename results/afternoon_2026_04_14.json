@@ -1,0 +1,72 @@
+{
+  "session": "2026-04-14 afternoon",
+  "context": "Three-way ablation testing fixes for ReverseRibosome's 0.21% LAMBADA. Theories: A=bypass gate, B=more chunks, C=deeper reverse. All three failed to break LAMBADA above 0.33%, confirming compression-ratio dominance.",
+  "experiments": [
+    {
+      "tag": "bypass_16c_2L",
+      "machine": "main (RTX 5090)",
+      "config": {"chunks": 16, "reverse_layers": 2, "bypass_gate": true, "embed": 3, "upper": 3, "steps": 25000, "batch": 8, "grad_accum": 4},
+      "params": 55505411,
+      "wt103_ce": 2.7391,
+      "wt103_ppl": 15.47,
+      "lambada_ce": 10.3389,
+      "lambada_ppl": 30911.15,
+      "lambada_acc": 0.0033,
+      "lambada_correct": 17,
+      "lambada_total": 5153,
+      "wallclock_sec": 728.9,
+      "interpretation": "Gate did not learn bimodal distribution. Cost wt103 ~2x. Theory A: REJECTED at this scale."
+    },
+    {
+      "tag": "chunks32_2L",
+      "machine": "olares (RTX 5090 Laptop)",
+      "config": {"chunks": 32, "reverse_layers": 2, "bypass_gate": false, "embed": 3, "upper": 3, "steps": 25000, "batch": 8, "grad_accum": 4},
+      "params": 55382018,
+      "wt103_ce": 0.994,
+      "wt103_ppl": 2.7,
+      "lambada_ce": 13.871,
+      "lambada_ppl": 1057050.7,
+      "lambada_acc": 0.0014,
+      "lambada_correct": 7,
+      "lambada_total": 5153,
+      "wallclock_sec": 1040.9,
+      "interpretation": "Best wt103 PPL of the afternoon. LAMBADA went DOWN. chunks=32 is in the wt103-good/LAMBADA-broken dead zone. Theory B: PARTIAL - confirms chunks=64 is the actual unlock from the morning sweep."
+    },
+    {
+      "tag": "deep4_16c",
+      "machine": "side (RTX 3060 Ti)",
+      "config": {"chunks": 16, "reverse_layers": 4, "bypass_gate": false, "embed": 3, "upper": 3, "steps": 25000, "batch": 4, "grad_accum": 4},
+      "params": 61666306,
+      "wt103_ce": 3.3209,
+      "wt103_ppl": 27.7,
+      "lambada_ce": 9.3305,
+      "lambada_ppl": 11277.1,
+      "lambada_acc": 0.0016,
+      "lambada_correct": 8,
+      "lambada_total": 5153,
+      "wallclock_sec": 3102.1,
+      "interpretation": "More reverse capacity HURT wt103 without helping LAMBADA. Extra layers absorbed grad that would have gone to upper. Theory C: REJECTED at 25K budget."
+    },
+    {
+      "tag": "baseline_12L_100K",
+      "machine": "frank (GTX 1070)",
+      "config": {"layers": 12, "hidden": 512, "heads": 8, "max_seq_len": 256, "steps": 100000},
+      "params": 63486976,
+      "best_step": 95000,
+      "best_val_loss": 5.4805,
+      "best_val_ppl": 240.0,
+      "final_step": 100000,
+      "final_val_loss": 5.4852,
+      "wallclock_sec": 60942.9,
+      "lambada_eval_pending": true,
+      "interpretation": "4x more compute = 33% PPL drop (358 -> 240). Still 5x worse than RibosomeTiny on next-token. LAMBADA eval not yet run."
+    }
+  ],
+  "key_findings": [
+    "Compression ratio (seq_len/n_chunks) dominates LAMBADA performance.",
+    "wt103 PPL and LAMBADA acc trade off non-monotonically: PPL sweet spot is LAMBADA dead zone.",
+    "Three orthogonal architectural fixes (bypass, chunks, depth) all failed at chunks=16.",
+    "The morning chunks=64 result (LAMBADA PPL 2.9) is the actual breakthrough; need to characterize Pareto frontier."
+  ],
+  "next_priority": "Compression sweep at 100K steps, chunks in {48, 64, 96, 128}, with reverse_layers=2."
+}

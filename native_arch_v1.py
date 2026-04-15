@@ -431,14 +431,31 @@ class CascadeProcessor(nn.Module):
 # CHUNK DECODER
 # ============================================================
 
+def _causal_token_to_chunk_mask(S, K, device, slack=1):
+    """True-means-BLOCKED mask of shape (S, K) for token-to-chunk cross-attention.
+    Token at position t may attend to chunks c where c <= floor(t*K/S) + slack.
+    This enforces that a token-level output at position t cannot see information
+    from chunks whose source positions exceed t (i.e., future tokens).
+    """
+    t_idx = torch.arange(S, device=device)
+    c_idx = torch.arange(K, device=device)
+    # allowed: c <= t*K//S + slack   =>   block when c > (t*K)//S + slack
+    ceiling = (t_idx * K) // S + slack  # (S,)
+    mask = c_idx.view(1, K) > ceiling.view(S, 1)  # (S, K)
+    return mask  # True = block
+
+
 class ChunkDecoder(nn.Module):
     """
     Expands processed chunk representations back to token-level
     predictions. Each token cross-attends to the processed chunks,
     weighted by its original assignment.
+
+    If causal_chunks=True, the token-to-chunk cross-attention is masked so
+    token t cannot attend to chunks whose source positions exceed t.
     """
     
-    def __init__(self, hidden_size, n_heads):
+    def __init__(self, hidden_size, n_heads, causal_chunks=False, chunk_mask_slack=1):
         super().__init__()
         self.cross_attn = nn.MultiheadAttention(
             hidden_size, num_heads=n_heads, batch_first=True
@@ -446,6 +463,8 @@ class ChunkDecoder(nn.Module):
         self.norm = RMSNorm(hidden_size)
         self.ffn = FFN(hidden_size)
         self.ffn_norm = RMSNorm(hidden_size)
+        self.causal_chunks = causal_chunks
+        self.chunk_mask_slack = chunk_mask_slack
     
     def forward(self, token_states, chunk_repr, token_to_chunk):
         """
@@ -456,8 +475,14 @@ class ChunkDecoder(nn.Module):
         Returns:
             expanded: (B, S, H) — token-level representations
         """
+        attn_mask = None
+        if self.causal_chunks:
+            S = token_states.size(1); K = chunk_repr.size(1)
+            attn_mask = _causal_token_to_chunk_mask(
+                S, K, token_states.device, slack=self.chunk_mask_slack)
         # Cross-attention: tokens query, chunks are keys/values
-        decoded, _ = self.cross_attn(token_states, chunk_repr, chunk_repr)
+        decoded, _ = self.cross_attn(token_states, chunk_repr, chunk_repr,
+                                     attn_mask=attn_mask, need_weights=False)
         x = self.norm(token_states + decoded)
         x = x + self.ffn(self.ffn_norm(x))
         return x
@@ -482,7 +507,8 @@ class ReverseRibosome(nn.Module):
     fine-grained token-by-token predictions that compression destroyed.
     """
     
-    def __init__(self, hidden_size, n_heads, n_layers=2, rope=None):
+    def __init__(self, hidden_size, n_heads, n_layers=2, rope=None,
+                 causal_chunks=False, chunk_mask_slack=1):
         super().__init__()
         # Step 1: cross-attention from tokens to chunks
         self.cross_attn = nn.MultiheadAttention(
@@ -498,6 +524,8 @@ class ReverseRibosome(nn.Module):
             for _ in range(n_layers)
         ])
         self.out_norm = RMSNorm(hidden_size)
+        self.causal_chunks = causal_chunks
+        self.chunk_mask_slack = chunk_mask_slack
     
     def forward(self, token_states, chunk_repr, token_to_chunk):
         """
@@ -509,9 +537,16 @@ class ReverseRibosome(nn.Module):
             output: (B, S, H) — refined token-level representations
         """
         B, S, H = token_states.shape
+        K = chunk_repr.size(1)
         
-        # Cross-attention: inject chunk context into token representations
-        decoded, _ = self.cross_attn(token_states, chunk_repr, chunk_repr)
+        # Cross-attention: inject chunk context into token representations.
+        # If causal_chunks, token t can only attend to chunks covering positions <= t.
+        cross_mask = None
+        if self.causal_chunks:
+            cross_mask = _causal_token_to_chunk_mask(
+                S, K, token_states.device, slack=self.chunk_mask_slack)
+        decoded, _ = self.cross_attn(token_states, chunk_repr, chunk_repr,
+                                     attn_mask=cross_mask, need_weights=False)
         x = self.cross_norm(token_states + decoded)
         x = x + self.cross_ffn(self.cross_ffn_norm(x))
         
