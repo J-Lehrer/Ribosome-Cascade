@@ -42,3 +42,11 @@ exp_layer_balance/
 # OS
 .DS_Store
 Thumbs.db
+
+# local cluster/launch helpers, scratch dumps, runtime files
+_*.py
+_*.vbs
+_*.bat
+_nb_b64.txt
+*.pid
+*.log
